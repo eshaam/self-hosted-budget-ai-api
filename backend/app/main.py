@@ -61,10 +61,23 @@ async def generate_text(request: Request, generate_request: GenerateRequest):
             if not verify_api_key(api_key):
                 raise HTTPException(status_code=401, detail="Invalid API key required for direct API access")
 
-        print("About to call generate_response")
-        response_text = generate_response(generate_request.prompt)
-        print(f"Generated response: {response_text[:100]}...")
-        return {"response": response_text}
+        print("About to call generate_response with 10min timeout")
+        
+        # Run model generation in thread pool to avoid blocking
+        import asyncio
+        import concurrent.futures
+        
+        loop = asyncio.get_event_loop()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = loop.run_in_executor(executor, generate_response, generate_request.prompt)
+            try:
+                # Wait up to 10 minutes for response
+                response_text = await asyncio.wait_for(future, timeout=600.0)
+                print(f"Generated response: {response_text[:100]}...")
+                return {"response": response_text}
+            except asyncio.TimeoutError:
+                print("Request timed out after 10 minutes")
+                return {"response": "I apologize, but your request is taking longer than expected to process. Please try with a shorter prompt or try again later."}
     
     except HTTPException:
         raise

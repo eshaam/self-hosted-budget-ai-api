@@ -56,13 +56,25 @@ class QwenModel:
             return False
     
     def generate_response(self, prompt: str) -> str:
-        """Generate response using the loaded model"""
+        """Generate response using the loaded model with timeout and CPU optimization"""
+        import signal
+        import threading
+        import time
+        
+        def timeout_handler(signum, frame):
+            raise TimeoutError("Model generation timed out after 10 minutes")
+        
         try:
             logger.info(f"Starting response generation for prompt: {prompt[:50]}...")
+            
+            # Set 10 minute timeout
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(600)  # 10 minutes
             
             if not self.model or not self.tokenizer:
                 logger.info("Model not loaded, attempting to load...")
                 if not self.load_model():
+                    signal.alarm(0)
                     return "Error: Model failed to load"
             
             logger.info("Model loaded successfully, generating response...")
@@ -70,12 +82,12 @@ class QwenModel:
             # Simple prompt format for Qwen2
             formatted_prompt = f"<|im_start|>system\nYou are a helpful AI assistant.<|im_end|>\n<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n"
             
-            # Tokenize input
+            # Tokenize input with reduced max length for efficiency
             inputs = self.tokenizer(
                 formatted_prompt, 
                 return_tensors="pt", 
                 truncation=True, 
-                max_length=2048
+                max_length=1024  # Reduced from 2048 for efficiency
             )
             
             # Move to device
@@ -83,16 +95,22 @@ class QwenModel:
             
             logger.info("Starting model generation...")
             
-            # Generate response with timeout handling
+            # CPU-optimized generation settings
             with torch.no_grad():
+                # Set number of threads for CPU efficiency
+                torch.set_num_threads(2)  # Limit CPU threads
+                
                 outputs = self.model.generate(
                     **inputs,
-                    max_new_tokens=min(settings.MAX_NEW_TOKENS, 50),  # Reduce tokens for faster response
-                    temperature=settings.TEMPERATURE,
+                    max_new_tokens=min(settings.MAX_NEW_TOKENS, 30),  # Further reduced for efficiency
+                    temperature=0.7,  # Fixed temperature for consistency
                     do_sample=True,
                     pad_token_id=self.tokenizer.eos_token_id,
                     eos_token_id=self.tokenizer.eos_token_id,
-                    repetition_penalty=1.1
+                    repetition_penalty=1.1,
+                    num_beams=1,  # Use greedy search for efficiency
+                    early_stopping=True,
+                    use_cache=True  # Enable KV cache for efficiency
                 )
             
             logger.info("Model generation completed, decoding response...")
@@ -103,10 +121,19 @@ class QwenModel:
                 skip_special_tokens=True
             ).strip()
             
+            # Cancel timeout
+            signal.alarm(0)
+            
             logger.info(f"Response generated successfully: {response[:50]}...")
             return response if response else "I'm sorry, I couldn't generate a response."
             
+        except TimeoutError as e:
+            signal.alarm(0)
+            logger.error(f"Model generation timed out: {str(e)}")
+            return "I apologize, but the response generation took too long. Please try with a shorter prompt."
+            
         except Exception as e:
+            signal.alarm(0)
             logger.error(f"Error generating response: {str(e)}")
             import traceback
             logger.error(f"Full traceback: {traceback.format_exc()}")

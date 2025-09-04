@@ -53,17 +53,21 @@ def deploy(c, host=REMOTE_HOST, user=REMOTE_USER, key_path=SSH_KEY_PATH):
             # Frontend deployment
             print("⚛️  Building React frontend...")
             with conn.cd("frontend"):
-                # Install Node.js dependencies
                 conn.run("npm install")
 
                 # Build for production
                 conn.run("npm run build")
 
+            # Update nginx configuration with extended timeouts
+          #  conn.sudo("cp nginx/self-hosted-budget-ai-api.conf /etc/nginx/sites-available/")
+            conn.sudo("nginx -t")  # Test configuration
+            conn.sudo("systemctl reload nginx")
+            
             # Restart services
-            print("🔄 Restarting services...")
-            restart_services(conn)
-
-        print("✅ Deployment completed successfully!")
+            conn.run("pm2 restart budget-ai-api || pm2 start ecosystem.config.js")
+            conn.run("pm2 save")
+            
+            print("✅ Deployment completed successfully!")
 
 
 @task
