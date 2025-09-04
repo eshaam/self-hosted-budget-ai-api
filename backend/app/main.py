@@ -57,7 +57,10 @@ async def generate_text(request: Request, generate_request: GenerateRequest):
     except HTTPException:
         raise
     except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
         print(f"Error in generate_text: {str(e)}")
+        print(f"Full traceback: {error_details}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 if __name__ == "__main__":
