@@ -56,25 +56,13 @@ class QwenModel:
             return False
     
     def generate_response(self, prompt: str) -> str:
-        """Generate response using the loaded model with timeout and CPU optimization"""
-        import signal
-        import threading
-        import time
-        
-        def timeout_handler(signum, frame):
-            raise TimeoutError("Model generation timed out after 10 minutes")
-        
+        """Generate response using the loaded model with CPU optimization"""
         try:
             logger.info(f"Starting response generation for prompt: {prompt[:50]}...")
-            
-            # Set 10 minute timeout
-            signal.signal(signal.SIGALRM, timeout_handler)
-            signal.alarm(600)  # 10 minutes
             
             if not self.model or not self.tokenizer:
                 logger.info("Model not loaded, attempting to load...")
                 if not self.load_model():
-                    signal.alarm(0)
                     return "Error: Model failed to load"
             
             logger.info("Model loaded successfully, generating response...")
@@ -121,19 +109,10 @@ class QwenModel:
                 skip_special_tokens=True
             ).strip()
             
-            # Cancel timeout
-            signal.alarm(0)
-            
             logger.info(f"Response generated successfully: {response[:50]}...")
             return response if response else "I'm sorry, I couldn't generate a response."
             
-        except TimeoutError as e:
-            signal.alarm(0)
-            logger.error(f"Model generation timed out: {str(e)}")
-            return "I apologize, but the response generation took too long. Please try with a shorter prompt."
-            
         except Exception as e:
-            signal.alarm(0)
             logger.error(f"Error generating response: {str(e)}")
             import traceback
             logger.error(f"Full traceback: {traceback.format_exc()}")
