@@ -18,5 +18,18 @@ def is_whitelisted(ip: str):
     if settings.DEV_MODE and ip in ["127.0.0.1", "::1"]:
         return True
 
+    # Allow nginx proxy and local IPs
+    if ip in ["127.0.0.1", "::1", "0.0.0.0"]:
+        return True
+
     whitelist = load_keys(settings.WHITELIST_FILE)
-    return ip in whitelist
+    
+    # Check exact IP match
+    if ip in whitelist:
+        return True
+    
+    # Check if any whitelist entry allows all IPs
+    if "0.0.0.0/0" in whitelist or "0.0.0.0" in whitelist:
+        return True
+        
+    return False

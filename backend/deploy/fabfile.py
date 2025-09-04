@@ -28,11 +28,8 @@ def deploy(c, host=REMOTE_HOST, user=REMOTE_USER, key_path=SSH_KEY_PATH):
             try:
                 conn.run("git pull origin master")
             except:
-                print("🔄 Removing existing directory and cloning fresh...")
-                conn.run(f"rm -rf {REMOTE_PATH}")
-                conn.run(f"mkdir -p {REMOTE_PATH}")
-                with conn.cd(REMOTE_PATH):
-                    conn.run(f"git clone {REPO_URL}.git .")
+                print("🔄 Cloning repository...")
+                conn.run(f"git clone {REPO_URL}.git .")
 
             # Backend deployment
             print("🐍 Setting up Python backend...")
@@ -40,8 +37,9 @@ def deploy(c, host=REMOTE_HOST, user=REMOTE_USER, key_path=SSH_KEY_PATH):
                 # Create virtual environment if it doesn't exist
                 conn.run("python3 -m venv venv || true")
 
-                # Install dependencies
-                conn.run("venv/bin/pip install -r requirements.txt")
+                # Install dependencies with timeout and better options
+                conn.run("venv/bin/pip install --upgrade pip")
+                conn.run("venv/bin/pip install -r requirements.txt --timeout 300 --no-cache-dir")
 
                 # Create necessary directories
                 conn.run("mkdir -p config models logs")
@@ -98,7 +96,7 @@ def setup(c, host=REMOTE_HOST, user=REMOTE_USER, key_path=SSH_KEY_PATH, sudo_pas
         conn.sudo(f"chown {user}:{user} {REMOTE_PATH}")
 
         # Setup nginx configuration
-        setup_nginx(conn)
+    #    setup_nginx(conn)
 
         print("✅ Server setup completed!")
 
