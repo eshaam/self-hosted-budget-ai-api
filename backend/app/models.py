@@ -57,11 +57,16 @@ class QwenModel:
     
     def generate_response(self, prompt: str) -> str:
         """Generate response using the loaded model"""
-        if not self.model or not self.tokenizer:
-            if not self.load_model():
-                return "Error: Model failed to load"
-        
         try:
+            logger.info(f"Starting response generation for prompt: {prompt[:50]}...")
+            
+            if not self.model or not self.tokenizer:
+                logger.info("Model not loaded, attempting to load...")
+                if not self.load_model():
+                    return "Error: Model failed to load"
+            
+            logger.info("Model loaded successfully, generating response...")
+            
             # Simple prompt format for Qwen2
             formatted_prompt = f"<|im_start|>system\nYou are a helpful AI assistant.<|im_end|>\n<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n"
             
@@ -76,11 +81,13 @@ class QwenModel:
             # Move to device
             inputs = {k: v.to(self.device) for k, v in inputs.items()}
             
-            # Generate response
+            logger.info("Starting model generation...")
+            
+            # Generate response with timeout handling
             with torch.no_grad():
                 outputs = self.model.generate(
                     **inputs,
-                    max_new_tokens=settings.MAX_NEW_TOKENS,
+                    max_new_tokens=min(settings.MAX_NEW_TOKENS, 50),  # Reduce tokens for faster response
                     temperature=settings.TEMPERATURE,
                     do_sample=True,
                     pad_token_id=self.tokenizer.eos_token_id,
@@ -88,16 +95,21 @@ class QwenModel:
                     repetition_penalty=1.1
                 )
             
+            logger.info("Model generation completed, decoding response...")
+            
             # Decode response
             response = self.tokenizer.decode(
                 outputs[0][inputs['input_ids'].shape[1]:], 
                 skip_special_tokens=True
             ).strip()
             
+            logger.info(f"Response generated successfully: {response[:50]}...")
             return response if response else "I'm sorry, I couldn't generate a response."
             
         except Exception as e:
             logger.error(f"Error generating response: {str(e)}")
+            import traceback
+            logger.error(f"Full traceback: {traceback.format_exc()}")
             return f"Error generating response: {str(e)}"
 
 # Global model instance
