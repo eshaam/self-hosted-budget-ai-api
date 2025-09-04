@@ -26,7 +26,7 @@ def deploy(c, host=REMOTE_HOST, user=REMOTE_USER, key_path=SSH_KEY_PATH):
             # Pull latest code
             print("📥 Pulling latest code...")
             try:
-                conn.run("git pull origin main")
+                conn.run("git pull origin master")
             except:
                 print("🔄 Removing existing directory and cloning fresh...")
                 conn.run(f"rm -rf {REMOTE_PATH}")
