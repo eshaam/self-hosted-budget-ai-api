@@ -95,10 +95,26 @@ def setup(c, host=REMOTE_HOST, user=REMOTE_USER, key_path=SSH_KEY_PATH, sudo_pas
         conn.sudo(f"mkdir -p {REMOTE_PATH}")
         conn.sudo(f"chown {user}:{user} {REMOTE_PATH}")
 
-        # Setup nginx configuration
-    #    setup_nginx(conn)
-
         print("✅ Server setup completed!")
+
+
+@task
+def download_model(c, host=REMOTE_HOST, user=REMOTE_USER, key_path=SSH_KEY_PATH):
+    """Download the AI model to the remote server"""
+    connect_kwargs = {"key_filename": os.path.expanduser(key_path)}
+    
+    with Connection(f"{user}@{host}", connect_kwargs=connect_kwargs) as conn:
+        print("🤖 Downloading AI model...")
+        
+        with conn.cd(f"{REMOTE_PATH}/backend"):
+            # Create models directory if it doesn't exist
+            conn.run("mkdir -p models")
+            
+            # Download the model using Python script
+            print("📦 Downloading Qwen2-0.5B-Instruct model...")
+            conn.run("venv/bin/python -c \"from transformers import AutoTokenizer, AutoModelForCausalLM; AutoTokenizer.from_pretrained('Qwen/Qwen2-0.5B-Instruct'); AutoModelForCausalLM.from_pretrained('Qwen/Qwen2-0.5B-Instruct')\"")
+            
+        print("✅ Model download completed!")
 
 
 def setup_nginx(conn):
