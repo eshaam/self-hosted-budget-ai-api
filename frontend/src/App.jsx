@@ -28,7 +28,7 @@ function App() {
     setIsLoading(true)
 
     try {
-      const response = await fetch('http://localhost:8000/api/generate', {
+      const response = await fetch('https://self-hosted-budget-ai-api.eshaam.co.za/api/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

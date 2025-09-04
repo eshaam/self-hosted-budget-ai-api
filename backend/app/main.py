@@ -9,7 +9,13 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174"] if settings.DEV_MODE else [],
+    allow_origins=[
+        "http://localhost:5173", 
+        "http://localhost:5174",
+        "https://self-hosted-budget-ai-api.eshaam.co.za"
+    ] if settings.DEV_MODE else [
+        "https://self-hosted-budget-ai-api.eshaam.co.za"
+    ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
@@ -34,8 +40,8 @@ async def generate_text(request: Request, generate_request: GenerateRequest):
     
     # Allow frontend access without API key
     is_frontend_request = (
-        origin and ("localhost" in origin or "127.0.0.1" in origin) or
-        referer and ("localhost" in referer or "127.0.0.1" in referer)
+        origin and ("localhost" in origin or "127.0.0.1" in origin or "self-hosted-budget-ai-api.eshaam.co.za" in origin) or
+        referer and ("localhost" in referer or "127.0.0.1" in referer or "self-hosted-budget-ai-api.eshaam.co.za" in referer)
     )
     
     # Require API key for external/direct API access
