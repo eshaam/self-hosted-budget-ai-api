@@ -90,7 +90,7 @@ function App() {
         },
         body: JSON.stringify({ 
           prompt,
-          model: availableModels[selectedModel] || selectedModel
+          model: selectedModel
         })
       })
 

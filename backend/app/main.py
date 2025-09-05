@@ -72,8 +72,15 @@ async def generate_text(request: Request, generate_request: GenerateRequest):
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
             try:
                 # Wait up to 10 minutes for response
+                # Map frontend model keys to actual model names
+                model_mapping = {
+                    "gemma": "google/gemma-3-270m",
+                    "qwen": "Qwen/Qwen2-0.5B-Instruct"
+                }
+                actual_model = model_mapping.get(generate_request.model, generate_request.model)
+                
                 response_text = await asyncio.wait_for(
-                    loop.run_in_executor(executor, generate_response, generate_request.prompt, generate_request.model), 
+                    loop.run_in_executor(executor, generate_response, generate_request.prompt, actual_model), 
                     timeout=600.0
                 )
                 print(f"Generated response: {response_text[:100]}...")
