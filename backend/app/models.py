@@ -139,8 +139,8 @@ class AIModel:
             return f"Error generating response: {str(e)}"
     
 
-# Global model instance - Default to Gemma 3 1B
-ai_model = AIModel("google/gemma-3-1b-it")
+# Global model instance - Default to Gemma 3 270M
+ai_model = AIModel("google/gemma-3-270m")
 
 def generate_response(prompt: str, model_name: Optional[str] = None) -> str:
     """Public function to generate response"""

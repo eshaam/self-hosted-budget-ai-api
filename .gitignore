@@ -30,3 +30,4 @@ backend/venv
 *.sw?
 *.pyc
 backend/.env
+backend/.env
