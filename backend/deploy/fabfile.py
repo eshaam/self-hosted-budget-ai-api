@@ -59,9 +59,9 @@ def deploy(c, host=REMOTE_HOST, user=REMOTE_USER, key_path=SSH_KEY_PATH):
                 conn.run("npm run build")
 
             # Update nginx configuration with extended timeouts
-          #  conn.sudo("cp nginx/self-hosted-budget-ai-api.conf /etc/nginx/sites-available/")
-            conn.sudo("nginx -t")  # Test configuration
-            conn.sudo("systemctl reload nginx")
+         #   conn.sudo("cp nginx/self-hosted-budget-ai-api.conf /etc/nginx/sites-available/")
+          #  conn.sudo("nginx -t")  # Test configuration
+          #  conn.sudo("systemctl reload nginx")
             
             # Restart services
             conn.run("pm2 restart budget-ai-api || pm2 start ecosystem.config.js")
