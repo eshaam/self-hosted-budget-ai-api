@@ -110,8 +110,8 @@ class AIModel:
                 
                 outputs = self.model.generate(
                     **inputs,
-                    max_new_tokens=min(settings.MAX_NEW_TOKENS, 200),  # Increased for better responses
-                    temperature=0.7,
+                    max_new_tokens=settings.MAX_NEW_TOKENS,  # Use full token limit from config
+                    temperature=settings.TEMPERATURE,
                     do_sample=True,
                     pad_token_id=self.tokenizer.eos_token_id,
                     eos_token_id=self.tokenizer.eos_token_id,

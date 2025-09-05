@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     WHITELIST_FILE: str = "config/whitelist.txt"
     MODEL_CACHE_DIR: str = "models"
     HUGGINGFACE_API_KEY: str = ""
-    MAX_NEW_TOKENS: int = 512
+    MAX_NEW_TOKENS: int = 8192
     TEMPERATURE: float = 0.7
     
     # Server settings

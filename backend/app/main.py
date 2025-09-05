@@ -9,11 +9,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173", 
-        "http://localhost:5174",
-        "https://self-hosted-budget-ai-api.eshaam.co.za"
-    ] if settings.DEV_MODE else [
+    allow_origins=["*"] if settings.DEV_MODE else [
         "https://self-hosted-budget-ai-api.eshaam.co.za"
     ],
     allow_credentials=True,

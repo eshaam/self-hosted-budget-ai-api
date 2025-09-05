@@ -1,17 +1,20 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Send, Sparkles, Brain, Zap, MessageCircle, Copy, Check, Settings } from 'lucide-react'
+import { Send, Sparkles, Brain, Zap, MessageCircle, Copy, Check, Settings, Bot } from 'lucide-react'
 
 function App() {
   const [prompt, setPrompt] = useState('')
   const [messages, setMessages] = useState([])
   const [isLoading, setIsLoading] = useState(false)
-  const [apiKey, setApiKey] = useState('')
   const [copied, setCopied] = useState(false)
   const [selectedModel, setSelectedModel] = useState('gemma')
   const [availableModels, setAvailableModels] = useState({})
   const [currentModel, setCurrentModel] = useState('')
+  const [startTime, setStartTime] = useState(null)
+  const [elapsedTime, setElapsedTime] = useState(0)
+  const [responseTime, setResponseTime] = useState(null)
   const messagesEndRef = useRef(null)
+  const timerRef = useRef(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -25,7 +28,7 @@ function App() {
     // Fetch available models on component mount
     const fetchModels = async () => {
       try {
-        const response = await fetch('https://self-hosted-budget-ai-api.eshaam.co.za/api/models')
+        const response = await fetch('http://localhost:8000/api/models')
         if (response.ok) {
           const data = await response.json()
           setAvailableModels(data.available_models)
@@ -43,6 +46,26 @@ function App() {
     fetchModels()
   }, [])
 
+  // Timer effect for tracking elapsed time
+  useEffect(() => {
+    if (isLoading && startTime) {
+      timerRef.current = setInterval(() => {
+        setElapsedTime(Date.now() - startTime)
+      }, 100) // Update every 100ms for smooth display
+    } else {
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+        timerRef.current = null
+      }
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+      }
+    }
+  }, [isLoading, startTime])
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!prompt.trim()) return
@@ -51,9 +74,15 @@ function App() {
     setMessages(prev => [...prev, userMessage])
     setPrompt('')
     setIsLoading(true)
+    
+    // Start timer
+    const requestStartTime = Date.now()
+    setStartTime(requestStartTime)
+    setElapsedTime(0)
+    setResponseTime(null)
 
     try {
-      const response = await fetch('https://self-hosted-budget-ai-api.eshaam.co.za/api/generate', {
+      const response = await fetch('http://localhost:8000/api/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -69,7 +98,17 @@ function App() {
       }
 
       const data = await response.json()
-      const aiMessage = { type: 'ai', content: data.response, timestamp: new Date() }
+      
+      // Calculate final response time
+      const finalResponseTime = Date.now() - requestStartTime
+      setResponseTime(finalResponseTime)
+      
+      const aiMessage = { 
+        type: 'ai', 
+        content: data.response, 
+        timestamp: new Date(),
+        responseTime: finalResponseTime
+      }
       setMessages(prev => [...prev, aiMessage])
     } catch (error) {
       const errorMessage = { 
@@ -91,34 +130,38 @@ function App() {
 
   const clearChat = () => {
     setMessages([])
+    setResponseTime(null)
+    setElapsedTime(0)
+    setStartTime(null)
+  }
+
+  const formatTime = (milliseconds) => {
+    if (milliseconds < 1000) {
+      return `${milliseconds}ms`
+    } else {
+      return `${(milliseconds / 1000).toFixed(1)}s`
+    }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      {/* Animated background */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-32 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse"></div>
-        <div className="absolute -bottom-40 -left-32 w-80 h-80 bg-cyan-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-pink-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse delay-500"></div>
-      </div>
-
-      <div className="relative z-10 min-h-screen flex flex-col">
-        {/* Header */}
-        <motion.header 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="p-6 border-b border-white/10 backdrop-blur-sm"
-        >
-          <div className="max-w-4xl mx-auto flex items-center justify-between">
+    <div className="min-h-screen bg-white">
+      {/* Header */}
+      <motion.header 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="border-b border-gray-100 bg-white/80 backdrop-blur-sm sticky top-0 z-50"
+      >
+        <div className="max-w-5xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="p-2 bg-gradient-to-r from-purple-500 to-cyan-500 rounded-xl">
-                <Brain className="w-8 h-8 text-white" />
+              <div className="p-2 bg-black rounded-lg">
+                <Bot className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
-                  Self-Hosted Budget AI
+                <h1 className="text-xl font-semibold text-gray-900">
+                  Self Hosted NO GPU AI API with Google Gemma and Alibaba Qwen
                 </h1>
-                <p className="text-sm text-gray-400">Powered by {currentModel || 'AI Model'}</p>
+                <p className="text-sm text-gray-500">Powered by {currentModel || 'AI Model'}</p>
               </div>
             </div>
             
@@ -129,10 +172,10 @@ function App() {
                 <select
                   value={selectedModel}
                   onChange={(e) => setSelectedModel(e.target.value)}
-                  className="bg-white/10 border border-white/20 rounded-lg px-3 py-1 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="border border-gray-200 rounded-lg px-3 py-1 text-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent bg-white"
                 >
                   {Object.entries(availableModels).map(([key, value]) => (
-                    <option key={key} value={key} className="bg-gray-800">
+                    <option key={key} value={key}>
                       {key.charAt(0).toUpperCase() + key.slice(1)}
                     </option>
                   ))}
@@ -141,135 +184,189 @@ function App() {
               
               <button
                 onClick={clearChat}
-                className="px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-white text-sm transition-colors"
+                className="px-4 py-2 border border-gray-200 hover:bg-gray-50 rounded-lg text-gray-700 text-sm transition-colors"
               >
                 Clear Chat
               </button>
             </div>
           </div>
-        </motion.header>
+        </div>
+      </motion.header>
 
-        {/* Chat Area */}
-        <div className="flex-1 max-w-4xl mx-auto w-full p-6">
-          <div className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 h-full flex flex-col">
-            
-            {/* Messages */}
-            <div className="flex-1 p-6 overflow-y-auto space-y-4 min-h-96 max-h-[60vh]">
-              <AnimatePresence>
-                {messages.length === 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="text-center py-12"
-                  >
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-purple-500 to-cyan-500 rounded-full mb-4">
-                      <Sparkles className="w-8 h-8 text-white" />
-                    </div>
-                    <h3 className="text-xl font-semibold text-white mb-2">Welcome to Budget AI</h3>
-                    <p className="text-gray-400 max-w-md mx-auto">
-                      Start a conversation with our self-hosted AI assistant. Ask questions, get creative, or just chat!
-                    </p>
-                  </motion.div>
-                )}
+      {/* Main Content */}
+      <div className="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+        {messages.length === 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center mb-12"
+          >
+            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
+              One Prompt. One AI Response.
+            </h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-8">
+              Enter a prompt and get intelligent responses from our self-hosted AI model.
+            </p>
+          </motion.div>
+        )}
 
-                {messages.map((message, index) => (
-                  <motion.div
-                    key={index}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div className={`max-w-sm lg:max-w-2xl px-4 py-3 rounded-2xl ${
-                      message.type === 'user' 
-                        ? 'bg-gradient-to-r from-purple-500 to-cyan-500 text-white' 
-                        : message.type === 'error'
-                        ? 'bg-red-500/20 border border-red-500/30 text-red-200'
-                        : 'bg-white/10 border border-white/20 text-white'
-                    }`}>
-                      <div className="flex items-start space-x-2">
-                        {message.type === 'ai' && (
-                          <Brain className="w-5 h-5 mt-0.5 text-purple-300 flex-shrink-0" />
-                        )}
-                        {message.type === 'user' && (
-                          <MessageCircle className="w-5 h-5 mt-0.5 text-white flex-shrink-0" />
-                        )}
+        {/* Messages */}
+        {messages.length > 0 && (
+          <div className="space-y-8 mb-8">
+            <AnimatePresence>
+              {messages.map((message, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="space-y-4"
+                >
+                  {message.type === 'user' && (
+                    <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100">
+                      <div className="flex items-start space-x-3">
+                        <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center flex-shrink-0">
+                          <MessageCircle className="w-4 h-4 text-white" />
+                        </div>
                         <div className="flex-1">
-                          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                          {message.type === 'ai' && (
-                            <button
-                              onClick={() => copyToClipboard(message.content)}
-                              className="mt-2 p-1 hover:bg-white/10 rounded text-xs flex items-center space-x-1 text-gray-300 hover:text-white transition-colors"
-                            >
-                              {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                              <span>{copied ? 'Copied!' : 'Copy'}</span>
-                            </button>
-                          )}
+                          <h3 className="font-medium text-gray-900 mb-2">Your Prompt</h3>
+                          <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">{message.content}</p>
                         </div>
                       </div>
                     </div>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-
-              {isLoading && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="flex justify-start"
-                >
-                  <div className="bg-white/10 border border-white/20 rounded-2xl px-4 py-3 max-w-xs">
-                    <div className="flex items-center space-x-2">
-                      <Brain className="w-5 h-5 text-purple-300" />
-                      <div className="flex space-x-1">
-                        <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"></div>
-                        <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce delay-100"></div>
-                        <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce delay-200"></div>
+                  )}
+                  
+                  {message.type === 'ai' && (
+                    <div className="bg-white rounded-2xl p-6 border border-gray-200">
+                      <div className="flex items-start space-x-3">
+                        <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+                          <Bot className="w-4 h-4 text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center space-x-3">
+                              <h3 className="font-medium text-gray-900">AI Response</h3>
+                              {message.responseTime && (
+                                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                                  {formatTime(message.responseTime)}
+                                </span>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => copyToClipboard(message.content)}
+                              className="p-1 hover:bg-gray-100 rounded text-sm flex items-center space-x-1 text-gray-500 hover:text-gray-700 transition-colors"
+                            >
+                              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                              <span>{copied ? 'Copied!' : 'Copy'}</span>
+                            </button>
+                          </div>
+                          <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
+
+                  {message.type === 'error' && (
+                    <div className="bg-red-50 rounded-2xl p-6 border border-red-200">
+                      <div className="flex items-start space-x-3">
+                        <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0">
+                          <Zap className="w-4 h-4 text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-medium text-red-900 mb-2">Error</h3>
+                          <p className="text-red-700 whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </motion.div>
-              )}
+              ))}
+            </AnimatePresence>
 
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Input Area */}
-            <div className="p-6 border-t border-white/10">
-              <form onSubmit={handleSubmit} className="flex space-x-4">
-                <div className="flex-1 relative">
-                  <textarea
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    placeholder="Type your message here... (Shift+Enter for new line, Enter to send)"
-                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y min-h-[80px] max-h-[200px]"
-                    rows="3"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault()
-                        handleSubmit(e)
-                      }
-                    }}
-                  />
+            {isLoading && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white rounded-2xl p-6 border border-gray-200"
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                    <Bot className="w-4 h-4 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-3 mb-2">
+                      <h3 className="font-medium text-gray-900">AI is thinking...</h3>
+                      {elapsedTime > 0 && (
+                        <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-full animate-pulse">
+                          {formatTime(elapsedTime)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex space-x-1">
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100"></div>
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200"></div>
+                    </div>
+                  </div>
                 </div>
+              </motion.div>
+            )}
+
+            <div ref={messagesEndRef} />
+          </div>
+        )}
+
+        {/* Input Area */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white rounded-2xl border border-gray-200 shadow-lg"
+        >
+          <form onSubmit={handleSubmit} className="p-6">
+            <div className="space-y-4">
+              <textarea
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="Enter your prompt here..."
+                className="w-full px-0 py-0 border-0 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-0 resize-none text-lg leading-relaxed"
+                rows="6"
+                style={{ minHeight: '150px' }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                    e.preventDefault()
+                    handleSubmit(e)
+                  }
+                }}
+              />
+              
+              <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                <p className="text-sm text-gray-500">
+                  Press {navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'} + Enter to send
+                </p>
+                
                 <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   type="submit"
                   disabled={isLoading || !prompt.trim()}
-                  className="px-6 py-3 bg-gradient-to-r from-purple-500 to-cyan-500 text-white rounded-xl hover:from-purple-600 hover:to-cyan-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                  className="px-6 py-3 bg-black text-white rounded-xl hover:bg-gray-800 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 font-medium"
                 >
                   {isLoading ? (
-                    <Zap className="w-5 h-5 animate-spin" />
+                    <>
+                      <Zap className="w-4 h-4 animate-spin" />
+                      <span>Generating...</span>
+                    </>
                   ) : (
-                    <Send className="w-5 h-5" />
+                    <>
+                      <Send className="w-4 h-4" />
+                      <span>Send Prompt</span>
+                    </>
                   )}
-                  <span className="hidden sm:inline">Send</span>
                 </motion.button>
-              </form>
+              </div>
             </div>
-          </div>
-        </div>
+          </form>
+        </motion.div>
       </div>
     </div>
   )
