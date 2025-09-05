@@ -29,3 +29,4 @@ backend/venv
 *.sln
 *.sw?
 *.pyc
+backend/.env
