@@ -13,13 +13,13 @@ logger = logging.getLogger(__name__)
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 class AIModel:
-    def __init__(self, model_name: str = "google/gemma-3-270m"):
+    def __init__(self, model_name: str = "Qwen/Qwen2-0.5B-Instruct"):
         self.model = None
         self.tokenizer = None
         self.device = "cpu"  # Force CPU usage for compatibility
         self.model_name = model_name
         self.available_models = {
-            "gemma": "google/gemma-3-270m",
+            "gemma": "google/gemma-2-2b-it",
             "qwen": "Qwen/Qwen2-0.5B-Instruct"
         }
         logger.info(f"Initializing model {model_name} on device: {self.device}")
@@ -45,15 +45,38 @@ class AIModel:
                 token=settings.HUGGINGFACE_API_KEY if settings.HUGGINGFACE_API_KEY else None
             )
             
-            # Load model with CPU optimization
-            self.model = AutoModelForCausalLM.from_pretrained(
-                self.model_name,
-                torch_dtype=torch.float32,  # Use float32 for CPU
-                device_map=None,  # Don't use device_map for CPU
-                trust_remote_code=True,
-                low_cpu_mem_usage=True,
-                token=settings.HUGGINGFACE_API_KEY if settings.HUGGINGFACE_API_KEY else None
-            )
+            # Load model with CPU optimization and better error handling
+            try:
+                self.model = AutoModelForCausalLM.from_pretrained(
+                    self.model_name,
+                    torch_dtype=torch.float32,  # Use float32 for CPU
+                    device_map=None,  # Don't use device_map for CPU
+                    trust_remote_code=True,
+                    low_cpu_mem_usage=True,
+                    token=settings.HUGGINGFACE_API_KEY if settings.HUGGINGFACE_API_KEY else None
+                )
+            except Exception as model_error:
+                logger.error(f"Failed to load model {self.model_name}: {str(model_error)}")
+                # Try fallback to Qwen if Gemma fails
+                if "gemma" in self.model_name.lower():
+                    logger.info("Attempting fallback to Qwen model...")
+                    self.model_name = "Qwen/Qwen2-0.5B-Instruct"
+                    self.model = AutoModelForCausalLM.from_pretrained(
+                        self.model_name,
+                        torch_dtype=torch.float32,
+                        device_map=None,
+                        trust_remote_code=True,
+                        low_cpu_mem_usage=True,
+                        token=settings.HUGGINGFACE_API_KEY if settings.HUGGINGFACE_API_KEY else None
+                    )
+                    # Also update tokenizer for fallback model
+                    self.tokenizer = AutoTokenizer.from_pretrained(
+                        self.model_name,
+                        trust_remote_code=True,
+                        token=settings.HUGGINGFACE_API_KEY if settings.HUGGINGFACE_API_KEY else None
+                    )
+                else:
+                    raise model_error
             
             # Move to CPU explicitly
             if self.model:
