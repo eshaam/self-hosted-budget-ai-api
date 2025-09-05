@@ -74,7 +74,7 @@ async def generate_text(request: Request, generate_request: GenerateRequest):
                 # Wait up to 10 minutes for response
                 # Map frontend model keys to actual model names
                 model_mapping = {
-                    "gemma": "google/gemma-2-2b-it",
+                    "gemma": "google/gemma-3-270m",
                     "qwen": "Qwen/Qwen2-0.5B-Instruct"
                 }
                 actual_model = model_mapping.get(generate_request.model, generate_request.model)
