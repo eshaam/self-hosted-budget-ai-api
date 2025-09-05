@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from .auth import verify_api_key, is_whitelisted
-from .models import generate_response
+from .models import generate_response, get_available_models, get_current_model
 from .config import settings
 
 app = FastAPI()
@@ -24,6 +24,10 @@ app.add_middleware(
 
 @app.middleware("http")
 async def check_ip_whitelist(request: Request, call_next):
+    # Skip IP whitelist check for health and models endpoints
+    if request.url.path in ["/api/health", "/api/models"] or request.url.path.startswith("/api/models/"):
+        return await call_next(request)
+    
     if not is_whitelisted(request.client.host):
         raise HTTPException(status_code=403, detail="IP not whitelisted")
     return await call_next(request)
@@ -31,6 +35,7 @@ async def check_ip_whitelist(request: Request, call_next):
 
 class GenerateRequest(BaseModel):
     prompt: str
+    model: str = None  # Optional model selection
 
 @app.get("/api/health")
 async def health_check():
@@ -69,10 +74,12 @@ async def generate_text(request: Request, generate_request: GenerateRequest):
         
         loop = asyncio.get_event_loop()
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-            future = loop.run_in_executor(executor, generate_response, generate_request.prompt)
             try:
                 # Wait up to 10 minutes for response
-                response_text = await asyncio.wait_for(future, timeout=600.0)
+                response_text = await asyncio.wait_for(
+                    loop.run_in_executor(executor, generate_response, generate_request.prompt, generate_request.model), 
+                    timeout=600.0
+                )
                 print(f"Generated response: {response_text[:100]}...")
                 return {"response": response_text}
             except asyncio.TimeoutError:
@@ -87,6 +94,31 @@ async def generate_text(request: Request, generate_request: GenerateRequest):
         print(f"Error in generate_text: {str(e)}")
         print(f"Full traceback: {error_details}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@app.get("/api/models")
+async def get_models():
+    """Get available models"""
+    return {
+        "available_models": get_available_models(),
+        "current_model": get_current_model()
+    }
+
+@app.post("/api/models/{model_name}")
+async def switch_model(model_name: str):
+    """Switch to a different model"""
+    available = get_available_models()
+    if model_name not in available and model_name not in available.values():
+        raise HTTPException(status_code=400, detail=f"Model {model_name} not available")
+    
+    # Test loading the model
+    try:
+        test_response = generate_response("Hello", model_name)
+        return {
+            "message": f"Successfully switched to {model_name}",
+            "current_model": get_current_model()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load model {model_name}: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

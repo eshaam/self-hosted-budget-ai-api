@@ -71,6 +71,73 @@ def deploy(c, host=REMOTE_HOST, user=REMOTE_USER, key_path=SSH_KEY_PATH):
 
 
 @task
+def setup_gemma(c):
+    """Setup Gemma 3 1B model on the server using HuggingFace API"""
+    print("🤖 Setting up Gemma 3 1B model...")
+    
+    # Install required dependencies including huggingface_hub
+    with c.cd(PROJECT_PATH):
+        print("📦 Installing dependencies...")
+        c.run("source venv/bin/activate && pip install torch transformers accelerate huggingface_hub", pty=True)
+        
+        # Pre-download the model to cache it with HuggingFace authentication
+        print("⬇️  Pre-downloading Gemma 3 1B model with HuggingFace authentication...")
+        c.run(f"""
+            source venv/bin/activate && python3 -c "
+from transformers import AutoTokenizer, AutoModelForCausalLM
+from huggingface_hub import login
+import torch
+import os
+
+# Set environment variable to avoid warnings
+os.environ['TOKENIZERS_PARALLELISM'] = 'false'
+
+# Authenticate with HuggingFace - read token from .env file
+import os
+from dotenv import load_dotenv
+load_dotenv()
+hf_token = os.getenv('HUGGINGFACE_API_KEY')
+if not hf_token:
+    print('Error: HUGGINGFACE_API_KEY not found in .env file')
+    exit(1)
+login(token=hf_token)
+print('Authenticated with HuggingFace Hub')
+
+print('Loading Gemma 3 1B model...')
+model_name = 'google/gemma-3-1b-it'
+
+try:
+    # Load tokenizer with authentication
+    tokenizer = AutoTokenizer.from_pretrained(
+        model_name, 
+        trust_remote_code=True,
+        token=hf_token
+    )
+    print('Tokenizer loaded successfully')
+    
+    # Load model with authentication
+    model = AutoModelForCausalLM.from_pretrained(
+        model_name,
+        torch_dtype=torch.float32,
+        device_map=None,
+        trust_remote_code=True,
+        low_cpu_mem_usage=True,
+        token=hf_token
+    )
+    print('Model loaded and cached successfully')
+    
+except Exception as e:
+    print(f'Error loading model: {{e}}')
+    import traceback
+    print(f'Full traceback: {{traceback.format_exc()}}')
+    exit(1)
+"
+        """, pty=True)
+    
+    print("✅ Gemma 3 1B model setup completed!")
+
+
+@task
 def setup(c, host=REMOTE_HOST, user=REMOTE_USER, key_path=SSH_KEY_PATH, sudo_pass=None):
     """Initial server setup"""
     connect_kwargs = {"key_filename": os.path.expanduser(key_path)}
