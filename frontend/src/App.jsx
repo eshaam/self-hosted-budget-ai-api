@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Send, Sparkles, Brain, Zap, MessageCircle, Copy, Check, Settings, Bot } from 'lucide-react'
+import { Send, Sparkles, Brain, Zap, MessageCircle, Copy, Check, Settings, Bot, Github, Twitter, Linkedin, ExternalLink } from 'lucide-react'
 
 function App() {
   const [prompt, setPrompt] = useState('')
@@ -159,7 +159,7 @@ function App() {
               </div>
               <div>
                 <h1 className="text-xl font-semibold text-gray-900">
-                  Self Hosted NO GPU AI API with Google Gemma and Alibaba Qwen
+                Affordable Self-Hosted AI Magic: GPU-Free API Powered by Google & Qwen!
                 </h1>
                 <p className="text-sm text-gray-500">Powered by {currentModel || 'AI Model'}</p>
               </div>
@@ -176,7 +176,7 @@ function App() {
                 >
                   {Object.entries(availableModels).map(([key, value]) => (
                     <option key={key} value={key}>
-                      {key.charAt(0).toUpperCase() + key.slice(1)}
+                      {key === 'gemma' ? 'Gemma' : key === 'qwen' ? 'Qwen' : key.charAt(0).toUpperCase() + key.slice(1)}
                     </option>
                   ))}
                 </select>
@@ -367,6 +367,67 @@ function App() {
             </div>
           </form>
         </motion.div>
+
+        {/* Footer */}
+        <motion.footer
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="mt-16 pt-8 border-t border-gray-200"
+        >
+          <div className="text-center space-y-4">
+            <div className="flex flex-col sm:flex-row items-center justify-center space-y-2 sm:space-y-0 sm:space-x-6 text-sm text-gray-600">
+              <div className="flex items-center space-x-2">
+                <span>Made by</span>
+                <a 
+                  href="https://eshaam.co.za" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="font-medium text-black hover:text-gray-700 transition-colors flex items-center space-x-1"
+                >
+                  <span>@eshaam</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+              
+              <div className="flex items-center space-x-4">
+                <a 
+                  href="https://x.com/eshaam" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-gray-500 hover:text-black transition-colors flex items-center space-x-1"
+                >
+                  <Twitter className="w-4 h-4" />
+                  <span className="hidden sm:inline">Twitter</span>
+                </a>
+                
+                <a 
+                  href="https://www.linkedin.com/in/eshaam/?originalSubdomain=za" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-gray-500 hover:text-black transition-colors flex items-center space-x-1"
+                >
+                  <Linkedin className="w-4 h-4" />
+                  <span className="hidden sm:inline">LinkedIn</span>
+                </a>
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
+              <Github className="w-4 h-4" />
+              <span>Code on</span>
+              <a 
+                href="https://github.com/eshaam/self-hosted-budget-ai-api" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="font-medium text-black hover:text-gray-700 transition-colors flex items-center space-x-1"
+              >
+                <span>GitHub</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+          </div>
+        </motion.footer>
       </div>
     </div>
   )
