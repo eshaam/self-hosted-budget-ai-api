@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Send, Sparkles, Brain, Zap, MessageCircle, Copy, Check } from 'lucide-react'
+import { Send, Sparkles, Brain, Zap, MessageCircle, Copy, Check, Settings } from 'lucide-react'
 
 function App() {
   const [prompt, setPrompt] = useState('')
@@ -8,6 +8,9 @@ function App() {
   const [isLoading, setIsLoading] = useState(false)
   const [apiKey, setApiKey] = useState('')
   const [copied, setCopied] = useState(false)
+  const [selectedModel, setSelectedModel] = useState('gemma')
+  const [availableModels, setAvailableModels] = useState({})
+  const [currentModel, setCurrentModel] = useState('')
   const messagesEndRef = useRef(null)
 
   const scrollToBottom = () => {
@@ -17,6 +20,28 @@ function App() {
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  useEffect(() => {
+    // Fetch available models on component mount
+    const fetchModels = async () => {
+      try {
+        const response = await fetch('https://self-hosted-budget-ai-api.eshaam.co.za/api/models')
+        if (response.ok) {
+          const data = await response.json()
+          setAvailableModels(data.available_models)
+          setCurrentModel(data.current_model)
+          // Set default selection to current model
+          const modelKey = Object.keys(data.available_models).find(key => 
+            data.available_models[key] === data.current_model
+          )
+          if (modelKey) setSelectedModel(modelKey)
+        }
+      } catch (error) {
+        console.error('Failed to fetch models:', error)
+      }
+    }
+    fetchModels()
+  }, [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -33,7 +58,10 @@ function App() {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ prompt })
+        body: JSON.stringify({ 
+          prompt,
+          model: availableModels[selectedModel] || selectedModel
+        })
       })
 
       if (!response.ok) {
@@ -90,11 +118,27 @@ function App() {
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
                   Self-Hosted Budget AI
                 </h1>
-                <p className="text-sm text-gray-400">Powered by Qwen2-0.5B-Instruct</p>
+                <p className="text-sm text-gray-400">Powered by {currentModel || 'AI Model'}</p>
               </div>
             </div>
             
             <div className="flex items-center space-x-4">
+              {/* Model Selector */}
+              <div className="flex items-center space-x-2">
+                <Settings className="w-4 h-4 text-gray-400" />
+                <select
+                  value={selectedModel}
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                  className="bg-white/10 border border-white/20 rounded-lg px-3 py-1 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                  {Object.entries(availableModels).map(([key, value]) => (
+                    <option key={key} value={key} className="bg-gray-800">
+                      {key.charAt(0).toUpperCase() + key.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
               <button
                 onClick={clearChat}
                 className="px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-white text-sm transition-colors"
@@ -110,7 +154,7 @@ function App() {
           <div className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 h-full flex flex-col">
             
             {/* Messages */}
-            <div className="flex-1 p-6 overflow-y-auto space-y-4 max-h-96">
+            <div className="flex-1 p-6 overflow-y-auto space-y-4 min-h-96 max-h-[60vh]">
               <AnimatePresence>
                 {messages.length === 0 && (
                   <motion.div
@@ -136,7 +180,7 @@ function App() {
                     exit={{ opacity: 0, y: -20 }}
                     className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
-                    <div className={`max-w-xs lg:max-w-md px-4 py-3 rounded-2xl ${
+                    <div className={`max-w-sm lg:max-w-2xl px-4 py-3 rounded-2xl ${
                       message.type === 'user' 
                         ? 'bg-gradient-to-r from-purple-500 to-cyan-500 text-white' 
                         : message.type === 'error'
@@ -197,9 +241,9 @@ function App() {
                   <textarea
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
-                    placeholder="Type your message here..."
-                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-                    rows="2"
+                    placeholder="Type your message here... (Shift+Enter for new line, Enter to send)"
+                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y min-h-[80px] max-h-[200px]"
+                    rows="3"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault()

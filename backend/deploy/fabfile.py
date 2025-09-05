@@ -71,6 +71,39 @@ def deploy(c, host=REMOTE_HOST, user=REMOTE_USER, key_path=SSH_KEY_PATH):
 
 
 @task
+def setup_gemma(c, host=REMOTE_HOST, user=REMOTE_USER, key_path=SSH_KEY_PATH):
+    """Setup Gemma model on the server"""
+    connect_kwargs = {"key_filename": os.path.expanduser(key_path)}
+    
+    with Connection(host, user=user, connect_kwargs=connect_kwargs) as conn:
+        print("🤖 Setting up Gemma 2B model...")
+        
+        with conn.cd("self-hosted-budget-ai-api/backend"):
+            # Install required packages for Gemma
+            conn.run("venv/bin/pip install torch transformers accelerate --timeout 600")
+            
+            # Pre-download Gemma model
+            print("📥 Pre-downloading Gemma model (this may take a while)...")
+            conn.run("""venv/bin/python -c "
+from transformers import AutoTokenizer, AutoModelForCausalLM
+import torch
+
+print('Downloading Gemma 2B model...')
+tokenizer = AutoTokenizer.from_pretrained('google/gemma-2-2b-it', trust_remote_code=True)
+model = AutoModelForCausalLM.from_pretrained(
+    'google/gemma-2-2b-it',
+    torch_dtype=torch.float32,
+    trust_remote_code=True,
+    low_cpu_mem_usage=True
+)
+print('Gemma model downloaded successfully!')
+"
+            """, timeout=1800)  # 30 minute timeout for model download
+            
+        print("✅ Gemma model setup completed!")
+
+
+@task
 def setup(c, host=REMOTE_HOST, user=REMOTE_USER, key_path=SSH_KEY_PATH, sudo_pass=None):
     """Initial server setup"""
     connect_kwargs = {"key_filename": os.path.expanduser(key_path)}

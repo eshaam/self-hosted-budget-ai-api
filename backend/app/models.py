@@ -1,63 +1,72 @@
-import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
-from .config import settings
-import logging
 import os
+import torch
+from transformers import AutoTokenizer, AutoModelForCausalLM
+import logging
+from app.config import settings
+from typing import Dict, Optional
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Set environment variable to avoid tokenizer warnings
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
-logger = logging.getLogger(__name__)
-
-class QwenModel:
-    def __init__(self):
-        self.tokenizer = None
+class AIModel:
+    def __init__(self, model_name: str = "google/gemma-2-2b-it"):
         self.model = None
-        self.pipeline = None
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        logger.info(f"Using device: {self.device}")
+        self.tokenizer = None
+        self.device = "cpu"  # Force CPU usage for compatibility
+        self.model_name = model_name
+        self.available_models = {
+            "gemma": "google/gemma-2-2b-it",
+            "qwen": "Qwen/Qwen2-0.5B-Instruct"
+        }
+        logger.info(f"Initializing model {model_name} on device: {self.device}")
         
-    def load_model(self):
-        """Load the Qwen2-0.5B-Instruct model"""
+    def load_model(self, model_name: Optional[str] = None) -> bool:
+        """Load the specified model and tokenizer"""
         try:
-            logger.info(f"Loading model: {settings.MODEL_NAME}")
+            if model_name:
+                self.model_name = model_name
             
-            # Load tokenizer with explicit trust_remote_code
+            logger.info(f"Loading model: {self.model_name}...")
+            
+            # Load tokenizer
             self.tokenizer = AutoTokenizer.from_pretrained(
-                settings.MODEL_NAME,
-                cache_dir=settings.MODEL_CACHE_DIR,
-                trust_remote_code=True,
-                use_fast=True
+                self.model_name,
+                trust_remote_code=True
             )
             
-            # Ensure pad token is set
-            if self.tokenizer.pad_token is None:
-                self.tokenizer.pad_token = self.tokenizer.eos_token
-            
-            # Load model
+            # Load model with CPU optimization
             self.model = AutoModelForCausalLM.from_pretrained(
-                settings.MODEL_NAME,
-                cache_dir=settings.MODEL_CACHE_DIR,
-                torch_dtype=torch.float16 if self.device == "cuda" else torch.float32,
-                device_map="auto" if self.device == "cuda" else None,
+                self.model_name,
+                torch_dtype=torch.float32,  # Use float32 for CPU
+                device_map=None,  # Don't use device_map for CPU
                 trust_remote_code=True,
                 low_cpu_mem_usage=True
             )
             
-            # Move model to device if not using device_map
-            if self.device == "cpu":
+            # Move to CPU explicitly
+            if self.model:
                 self.model = self.model.to(self.device)
             
-            logger.info("Model loaded successfully")
+            logger.info(f"Model {self.model_name} loaded successfully")
             return True
             
         except Exception as e:
-            logger.error(f"Error loading model: {str(e)}")
+            logger.error(f"Error loading model {self.model_name}: {str(e)}")
             return False
     
-    def generate_response(self, prompt: str) -> str:
+    def generate_response(self, prompt: str, model_name: Optional[str] = None) -> str:
         """Generate response using the loaded model with CPU optimization"""
         try:
+            # Switch model if requested
+            if model_name and model_name != self.model_name:
+                logger.info(f"Switching to model: {model_name}")
+                if not self.load_model(model_name):
+                    return f"Error: Failed to load model {model_name}"
+            
             logger.info(f"Starting response generation for prompt: {prompt[:50]}...")
             
             if not self.model or not self.tokenizer:
@@ -67,15 +76,18 @@ class QwenModel:
             
             logger.info("Model loaded successfully, generating response...")
             
-            # Simple prompt format for Qwen2
-            formatted_prompt = f"<|im_start|>system\nYou are a helpful AI assistant.<|im_end|>\n<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n"
+            # Format prompt based on model type
+            if "gemma" in self.model_name.lower():
+                formatted_prompt = f"<start_of_turn>user\n{prompt}<end_of_turn>\n<start_of_turn>model\n"
+            else:  # Qwen format
+                formatted_prompt = f"<|im_start|>system\nYou are a helpful AI assistant.<|im_end|>\n<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n"
             
-            # Tokenize input with reduced max length for efficiency
+            # Tokenize input with increased max length
             inputs = self.tokenizer(
                 formatted_prompt, 
                 return_tensors="pt", 
                 truncation=True, 
-                max_length=1024  # Reduced from 2048 for efficiency
+                max_length=2048
             )
             
             # Move to device
@@ -90,15 +102,15 @@ class QwenModel:
                 
                 outputs = self.model.generate(
                     **inputs,
-                    max_new_tokens=min(settings.MAX_NEW_TOKENS, 30),  # Further reduced for efficiency
-                    temperature=0.7,  # Fixed temperature for consistency
+                    max_new_tokens=min(settings.MAX_NEW_TOKENS, 200),  # Increased for better responses
+                    temperature=0.7,
                     do_sample=True,
                     pad_token_id=self.tokenizer.eos_token_id,
                     eos_token_id=self.tokenizer.eos_token_id,
                     repetition_penalty=1.1,
-                    num_beams=1,  # Use greedy search for efficiency
+                    num_beams=1,
                     early_stopping=True,
-                    use_cache=True  # Enable KV cache for efficiency
+                    use_cache=True
                 )
             
             logger.info("Model generation completed, decoding response...")
@@ -117,10 +129,19 @@ class QwenModel:
             import traceback
             logger.error(f"Full traceback: {traceback.format_exc()}")
             return f"Error generating response: {str(e)}"
+    
 
-# Global model instance
-qwen_model = QwenModel()
+# Global model instance - Default to Gemma
+ai_model = AIModel("google/gemma-2-2b-it")
 
-def generate_response(prompt: str) -> str:
+def generate_response(prompt: str, model_name: Optional[str] = None) -> str:
     """Public function to generate response"""
-    return qwen_model.generate_response(prompt)
+    return ai_model.generate_response(prompt, model_name)
+
+def get_available_models() -> Dict[str, str]:
+    """Get list of available models"""
+    return ai_model.available_models
+
+def get_current_model() -> str:
+    """Get current model name"""
+    return ai_model.model_name
