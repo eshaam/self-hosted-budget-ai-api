@@ -123,11 +123,37 @@ class AIModel:
             
             logger.info("Model generation completed, decoding response...")
             
-            # Decode response
-            response = self.tokenizer.decode(
-                outputs[0][inputs['input_ids'].shape[1]:], 
-                skip_special_tokens=True
-            ).strip()
+            # Decode response with error handling
+            try:
+                # Ensure we have valid outputs
+                if outputs is None or len(outputs) == 0:
+                    logger.error("Model generation returned empty outputs")
+                    return "I'm sorry, I couldn't generate a response."
+                
+                # Get the generated tokens (excluding input tokens)
+                input_length = inputs['input_ids'].shape[1]
+                generated_tokens = outputs[0]
+                
+                # Validate token dimensions
+                if len(generated_tokens) <= input_length:
+                    logger.error(f"Generated tokens ({len(generated_tokens)}) not longer than input ({input_length})")
+                    return "I'm sorry, I couldn't generate a response."
+                
+                # Decode only the new tokens
+                new_tokens = generated_tokens[input_length:]
+                response = self.tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
+                
+            except Exception as decode_error:
+                logger.error(f"Error decoding response: {str(decode_error)}")
+                # Fallback: try to decode the full output
+                try:
+                    response = self.tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
+                    # Remove the input prompt from the response
+                    if formatted_prompt in response:
+                        response = response.replace(formatted_prompt, "").strip()
+                except Exception as fallback_error:
+                    logger.error(f"Fallback decoding also failed: {str(fallback_error)}")
+                    return "I'm sorry, I couldn't generate a response."
             
             logger.info(f"Response generated successfully: {response[:50]}...")
             return response if response else "I'm sorry, I couldn't generate a response."
