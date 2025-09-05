@@ -174,7 +174,7 @@ function App() {
                 <h1 className="text-xl font-semibold text-gray-900">
                 Affordable Self-Hosted AI Magic: GPU-Free API Powered by Google & Qwen!
                 </h1>
-                <p className="text-sm text-gray-500">Powered by {currentModel || 'AI Model'}</p>
+                <p className="text-sm text-gray-500">Powered by {availableModels[selectedModel] || currentModel || 'AI Model'}</p>
               </div>
             </div>
             
