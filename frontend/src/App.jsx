@@ -28,7 +28,7 @@ function App() {
     // Fetch available models on component mount
     const fetchModels = async () => {
       try {
-        const response = await fetch('http://localhost:8000/api/models')
+        const response = await fetch('/api/models')
         if (response.ok) {
           const data = await response.json()
           setAvailableModels(data.available_models)
@@ -82,7 +82,7 @@ function App() {
     setResponseTime(null)
 
     try {
-      const response = await fetch('http://localhost:8000/api/generate', {
+      const response = await fetch('/api/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

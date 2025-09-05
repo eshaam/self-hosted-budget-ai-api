@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # Development mode
-    DEV_MODE: bool = True
+    DEV_MODE: bool = os.getenv("DEV_MODE", "False").lower() == "true"
     
     # File paths
     API_KEYS_FILE: str = "config/api_keys.txt"
