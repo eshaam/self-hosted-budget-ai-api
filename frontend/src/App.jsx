@@ -14,6 +14,7 @@ function App() {
   const [elapsedTime, setElapsedTime] = useState(0)
   const [responseTime, setResponseTime] = useState(null)
   const messagesEndRef = useRef(null)
+  const [exampleCopied, setExampleCopied] = useState(null)
   const timerRef = useRef(null)
 
   const scrollToBottom = () => {
@@ -127,6 +128,18 @@ function App() {
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
+
+  const copyExamplePrompt = (text, index) => {
+    navigator.clipboard.writeText(text)
+    setExampleCopied(index)
+    setTimeout(() => setExampleCopied(null), 2000)
+  }
+
+  const examplePrompts = [
+    "Analyze my business idea of web development agency for businesses. Identify market gaps, high-potential niches, 3 competitors to watch, current trends, customer pain points & pricing insights.",
+    "Turn videos into a high-value offer that social media managers & small business owners can't ignore. Include bonuses, pricing psychology & value-boost tactics.",
+    "Create a complete brand identity for my electrician business targeting home owners. Suggest brand names, a tagline, color palette, tone, and a short brand story."
+  ]
 
   const clearChat = () => {
     setMessages([])
@@ -366,6 +379,34 @@ function App() {
               </div>
             </div>
           </form>
+
+          {/* Example Prompts */}
+          <div className="mt-4 space-y-3">
+            <h3 className="text-sm font-medium text-gray-700 mb-2">Try these example prompts:</h3>
+            <div className="space-y-2">
+              {examplePrompts.map((example, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="group relative bg-gray-50 hover:bg-gray-100 rounded-lg p-3 border border-gray-200 cursor-pointer transition-all duration-200"
+                  onClick={() => copyExamplePrompt(example, index)}
+                >
+                  <p className="text-sm text-gray-700 pr-8 leading-relaxed">
+                    {example}
+                  </p>
+                  <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {exampleCopied === index ? (
+                      <Check className="w-4 h-4 text-green-600" />
+                    ) : (
+                      <Copy className="w-4 h-4 text-gray-400" />
+                    )}
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
         </motion.div>
 
         {/* Footer */}
