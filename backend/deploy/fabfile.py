@@ -72,15 +72,15 @@ def deploy(c, host=REMOTE_HOST, user=REMOTE_USER, key_path=SSH_KEY_PATH):
 
 @task
 def setup_gemma(c, host=REMOTE_HOST, user=REMOTE_USER, key_path=SSH_KEY_PATH, local=False):
-    """Setup Gemma 3 1B model locally or on server using HuggingFace API"""
-    print("🤖 Setting up Gemma 3 1B model...")
+    """Setup Gemma 3 270M model locally or on server using HuggingFace API (memory optimized)"""
+    print("🤖 Setting up Gemma 3 270M model (memory optimized)...")
     
     if local:
         # Local setup
         print("📦 Installing dependencies locally...")
         c.run("pip install --upgrade torch transformers accelerate huggingface_hub python-dotenv", pty=True)
         
-        print("⬇️  Pre-downloading Gemma 3 1B model with HuggingFace authentication...")
+        print("⬇️  Pre-downloading Gemma 3 270M model with HuggingFace authentication...")
         c.run("""
 python3 -c "
 from transformers import AutoTokenizer, AutoModelForCausalLM
@@ -103,8 +103,8 @@ if not hf_token:
 login(token=hf_token)
 print('Authenticated with HuggingFace Hub')
 
-print('Loading Gemma 3 1B model...')
-model_name = 'google/gemma-3-1b-it'
+print('Loading Gemma 3 270M model...')
+model_name = 'google/gemma-3-270m'
 
 try:
     # Load tokenizer with authentication
@@ -141,7 +141,7 @@ except Exception as e:
                 print("📦 Installing dependencies on server...")
                 conn.run("source venv/bin/activate && pip install --upgrade torch transformers accelerate huggingface_hub python-dotenv", pty=True)
                 
-                print("⬇️  Pre-downloading Gemma 3 1B model on server...")
+                print("⬇️  Pre-downloading Gemma 3 270M model on server...")
                 conn.run("""
 source venv/bin/activate && python3 -c "
 from transformers import AutoTokenizer, AutoModelForCausalLM
@@ -164,8 +164,8 @@ if not hf_token:
 login(token=hf_token)
 print('Authenticated with HuggingFace Hub')
 
-print('Loading Gemma 3 1B model...')
-model_name = 'google/gemma-3-1b-it'
+print('Loading Gemma 3 270M model...')
+model_name = 'google/gemma-3-270m'
 
 try:
     # Load tokenizer with authentication
@@ -195,7 +195,7 @@ except Exception as e:
 "
                 """, pty=True)
     
-    print("✅ Gemma 3 1B model setup completed!")
+    print("✅ Gemma 3 270M model setup completed!")
 
 
 @task

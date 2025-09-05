@@ -13,13 +13,13 @@ logger = logging.getLogger(__name__)
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 class AIModel:
-    def __init__(self, model_name: str = "google/gemma-3-1b-it"):
+    def __init__(self, model_name: str = "google/gemma-3-270m"):
         self.model = None
         self.tokenizer = None
         self.device = "cpu"  # Force CPU usage for compatibility
         self.model_name = model_name
         self.available_models = {
-            "gemma": "google/gemma-3-1b-it",
+            "gemma": "google/gemma-3-270m",
             "qwen": "Qwen/Qwen2-0.5B-Instruct"
         }
         logger.info(f"Initializing model {model_name} on device: {self.device}")
